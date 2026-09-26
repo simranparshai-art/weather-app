@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7f2">
+  <meta name="description" content="A friendly daily weather forecast with outfit ideas for wherever you're headed.">
+  <title>Weather, Worn — your forecast, styled</title>
+  <link rel="preconnect" href="https://api.open-meteo.com">
+  <link rel="preconnect" href="https://geocoding-api.open-meteo.com">
+  <link rel="preconnect" href="https://images.unsplash.com">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      color-scheme: light;
+      --ink: #17231e;
+      --muted: #748079;
+      --green: #264b3c;
+      --green-dark: #17392d;
+      --lime: #d9f276;
+      --paper: #f5f7f2;
+      --line: #e5eae3;
+      --white: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; background: var(--paper); color: var(--ink); }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .page-shell { width: min(1120px, calc(100% - 56px)); margin: 0 auto; }
+    .topbar { height: 84px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+    .brand { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; color: var(--ink); font: 800 19px 'Manrope', sans-serif; letter-spacing: -1px; }
+    .brand-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 12px; background: var(--lime); font-size: 19px; color: var(--green-dark); letter-spacing: -2px; }
+    .brand-light { font-weight: 500; }
+    .topbar-note { display: flex; align-items: center; gap: 9px; color: #69756e; font-size: 12px; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #8ac45d; box-shadow: 0 0 0 4px #e5f1d8; }
+    .unit-switch { display: flex; align-items: center; gap: 2px; padding: 4px; border: 1px solid var(--line); background: #fff; border-radius: 12px; }
+    .unit-button { width: 35px; height: 31px; color: #68756d; border: 0; background: transparent; border-radius: 8px; font-size: 12px; font-weight: 700; }
+    .unit-button.is-active { color: white; background: var(--green); }
+    main { padding: 48px 0 30px; }
+    .intro-row { display: flex; align-items: end; justify-content: space-between; gap: 36px; margin-bottom: 25px; }
+    .eyebrow { margin: 0 0 12px; color: #829087; font-size: 9px; font-weight: 700; letter-spacing: 1.55px; }
+    h1, h2, p, figure { margin-top: 0; }
+    h1, h2 { font-family: 'Manrope', sans-serif; }
+    h1 { margin-bottom: 7px; font-size: clamp(34px, 4vw, 48px); line-height: 1.1; letter-spacing: -2.5px; }
+    h1 span { color: #65824c; }
+    .intro-copy { margin: 0; color: var(--muted); font-size: 13px; }
+    .search-form { display: flex; align-items: center; width: min(390px, 44%); height: 48px; padding: 5px; border: 1px solid #e3e9e0; border-radius: 14px; background: var(--white); box-shadow: 0 5px 18px #233d2908; }
+    .search-icon { padding: 0 10px; color: #859188; font-size: 23px; line-height: 1; transform: rotate(-20deg); }
+    .search-form input { min-width: 0; flex: 1; height: 100%; padding: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 12px; }
+    .search-form input::placeholder { color: #a0aaa3; }
+    .search-form:focus-within { border-color: #95ad7c; box-shadow: 0 0 0 3px #eaf1e3; }
+    .search-form button { height: 36px; padding: 0 14px; border: 0; border-radius: 10px; color: #fff; background: var(--green); font-size: 11px; font-weight: 700; transition: background .2s, transform .2s; }
+    .search-form button:hover { background: #345e4d; transform: translateY(-1px); }
+    .search-form button:disabled { cursor: wait; opacity: .65; }
+    .status-message { min-height: 18px; margin: 0 0 9px; color: #a24a35; font-size: 12px; }
+    .status-message:empty { min-height: 0; margin-bottom: 0; }
+    .weather-layout { display: grid; grid-template-columns: .91fr 1.09fr; gap: 15px; }
+    .weather-card, .outfit-card { min-height: 330px; overflow: hidden; border-radius: 20px; }
+    .weather-card { position: relative; padding: 27px 29px 19px; color: #fff; background: var(--green-dark); }
+    .weather-card::after { position: absolute; top: -150px; right: -98px; width: 290px; height: 290px; border: 1px solid #ffffff0c; border-radius: 50%; box-shadow: 0 0 0 33px #ffffff08, 0 0 0 68px #ffffff05; content: ''; pointer-events: none; }
+    .weather-card-top { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: start; }
+    .eyebrow-light { color: #a6b9ad; }
+    .weather-card h2 { margin: 0 0 5px; font-size: 17px; font-weight: 600; letter-spacing: -.4px; }
+    .date-line { margin: 0; color: #b4c4ba; font-size: 11px; }
+    .weather-symbol { display: grid; place-items: center; width: 47px; height: 47px; border: 1px solid #ffffff20; border-radius: 15px; color: var(--lime); background: #ffffff0d; font-size: 26px; }
+    .temperature-row { display: flex; align-items: center; gap: 13px; margin: 15px 0 18px; }
+    .temperature { font: 500 67px/.95 'Manrope', sans-serif; letter-spacing: -5px; }
+    .condition-block { padding-top: 8px; }
+    .condition { margin: 0 0 5px; font-size: 13px; font-weight: 600; }
+    .high-low { margin: 0; color: #b5c5bb; font-size: 11px; }
+    .weather-divider { height: 1px; background: #ffffff1b; }
+    .weather-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; padding-top: 17px; }
+    .weather-stat { display: grid; grid-template-columns: 16px 1fr; align-items: center; column-gap: 4px; row-gap: 6px; }
+    .stat-icon { color: var(--lime); font-size: 13px; }
+    .stat-label { color: #b4c3ba; font-size: 9px; white-space: nowrap; }
+    .weather-stat strong { grid-column: 2; font-size: 11px; font-weight: 600; }
+    .weather-source { position: absolute; right: 28px; bottom: 12px; margin: 0; color: #91a79a; font-size: 9px; }
+    .outfit-card { display: grid; grid-template-columns: 1fr .83fr; gap: 5px; padding: 24px; border: 1px solid #e7ebe4; background: #fff; }
+    .outfit-copy { display: flex; flex-direction: column; align-items: flex-start; padding: 4px 2px 0 0; }
+    .outfit-card .eyebrow { margin-bottom: 11px; }
+    .outfit-card h2 { max-width: 255px; margin-bottom: 8px; font-size: 20px; line-height: 1.27; letter-spacing: -.7px; }
+    .outfit-description { max-width: 280px; margin-bottom: 15px; color: #768179; font-size: 11px; line-height: 1.65; }
+    .outfit-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .outfit-tag { padding: 7px 9px; border: 1px solid #e8ede5; border-radius: 8px; color: #42574a; background: #f8faf6; font-size: 9px; font-weight: 600; }
+    .extra-tip { margin: auto 0 0; padding-top: 10px; color: #7c8a7e; font-size: 10px; line-height: 1.5; }
+    .outfit-image-wrap { position: relative; min-height: 240px; margin: 0; overflow: hidden; border-radius: 13px; background: #e8eee7; }
+    .outfit-image-wrap img { width: 100%; height: 100%; min-height: 240px; object-fit: cover; }
+    .outfit-image-wrap figcaption { position: absolute; right: 9px; bottom: 9px; left: 9px; padding: 8px; border: 1px solid #ffffff45; border-radius: 8px; color: white; background: #18221dbb; font-size: 9px; text-align: center; backdrop-filter: blur(7px); }
+    .comfort-card { display: grid; grid-template-columns: 48px 1fr minmax(180px, .75fr); align-items: center; gap: 16px; margin-top: 15px; padding: 19px 25px; border: 1px solid #e7ebe4; border-radius: 17px; background: #fff; }
+    .comfort-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; color: #46623c; background: #eef5dd; font-size: 22px; }
+    .comfort-copy .eyebrow { margin-bottom: 5px; font-size: 8px; }
+    .comfort-copy h2 { margin-bottom: 3px; font-size: 14px; letter-spacing: -.25px; }
+    .comfort-copy p:last-child { margin-bottom: 0; color: var(--muted); font-size: 10px; }
+    .meter-track { height: 7px; overflow: hidden; border-radius: 5px; background: linear-gradient(90deg, #efb79b, #f2da91 45%, #b8d890); }
+    .meter-track span { display: block; width: 0; height: 100%; border-radius: inherit; background: #395b3d; transition: width .6s ease; }
+    .meter-labels { display: flex; align-items: center; justify-content: space-between; gap: 7px; margin-top: 8px; color: #8c958e; font-size: 7px; font-weight: 700; letter-spacing: .5px; }
+    .meter-labels strong { color: var(--green); font: 800 14px 'Manrope', sans-serif; letter-spacing: 0; }
+    .footer { display: flex; justify-content: space-between; gap: 16px; padding: 20px 2px 0; color: #8b958d; font-size: 9px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
+
+    @media (max-width: 760px) {
+      .page-shell { width: min(600px, calc(100% - 36px)); }
+      .topbar { height: 70px; }
+      .topbar-note { display: none; }
+      main { padding-top: 35px; }
+      .intro-row { align-items: stretch; flex-direction: column; gap: 20px; }
+      .search-form { width: 100%; }
+      .weather-layout { grid-template-columns: 1fr; }
+      .weather-card { min-height: 310px; }
+      .outfit-card { min-height: 305px; }
+      .comfort-card { grid-template-columns: 44px 1fr; }
+      .comfort-meter { grid-column: 2; }
+    }
+    @media (max-width: 430px) {
+      .page-shell { width: calc(100% - 28px); }
+      .intro-copy { max-width: 290px; line-height: 1.5; }
+      h1 { font-size: 38px; }
+      .weather-card { padding-right: 22px; padding-left: 22px; }
+      .weather-stats { gap: 3px; }
+      .stat-label { font-size: 8px; }
+      .outfit-card { grid-template-columns: 1fr .77fr; gap: 12px; padding: 17px; }
+      .outfit-card h2 { font-size: 17px; }
+      .outfit-description { font-size: 10px; }
+      .outfit-image-wrap, .outfit-image-wrap img { min-height: 220px; }
+      .comfort-card { gap: 12px; padding: 16px; }
+      .footer { flex-direction: column; gap: 7px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+  </style>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+    const DEFAULT_CITY = { name: 'Detroit', country: 'United States', latitude: 42.33, longitude: -83.05 };
+    const API_BASE = 'https://api.open-meteo.com/v1/forecast';
+    const GEOCODING_BASE = 'https://geocoding-api.open-meteo.com/v1/search';
+    const state = { unit: localStorage.getItem('weather-worn-unit') === 'F' ? 'F' : 'C', location: DEFAULT_CITY, weather: null };
+
+    const elements = {
+      form: document.querySelector('#search-form'),
+      input: document.querySelector('#city-search'),
+      searchButton: document.querySelector('#search-button'),
+      status: document.querySelector('#status-message'),
+      city: document.querySelector('#city-name'),
+      date: document.querySelector('#date-line'),
+      symbol: document.querySelector('#weather-symbol'),
+      temperature: document.querySelector('#temperature'),
+      condition: document.querySelector('#condition'),
+      highLow: document.querySelector('#high-low'),
+      feelsLike: document.querySelector('#feels-like'),
+      rain: document.querySelector('#rain-chance'),
+      wind: document.querySelector('#wind-speed'),
+      uv: document.querySelector('#uv-index'),
+      outfitHeading: document.querySelector('#outfit-heading'),
+      outfitDescription: document.querySelector('#outfit-description'),
+      outfitTags: document.querySelector('#outfit-tags'),
+      extraTip: document.querySelector('#extra-tip'),
+      outfitImage: document.querySelector('#outfit-image'),
+      imageCaption: document.querySelector('#image-caption'),
+      meter: document.querySelector('#meter-fill'),
+      score: document.querySelector('#comfort-score'),
+      rating: document.querySelector('#comfort-rating'),
+      comfortNote: document.querySelector('#comfort-note'),
+      updated: document.querySelector('#updated-time'),
+    };
+
+    const weatherDescriptions = {
+      0: ['Clear sky', '☀'], 1: ['Mostly clear', '🌤'], 2: ['Partly cloudy', '⛅'], 3: ['Overcast', '☁'],
+      45: ['Foggy', '🌫'], 48: ['Icy fog', '🌫'], 51: ['Light drizzle', '🌦'], 53: ['Drizzle', '🌦'], 55: ['Heavy drizzle', '🌧'],
+      56: ['Freezing drizzle', '🌧'], 57: ['Freezing drizzle', '🌧'], 61: ['Light rain', '🌧'], 63: ['Rain', '🌧'], 65: ['Heavy rain', '🌧'],
+      66: ['Freezing rain', '🌧'], 67: ['Freezing rain', '🌧'], 71: ['Light snow', '❄'], 73: ['Snow', '❄'], 75: ['Heavy snow', '❄'],
+      77: ['Snow grains', '❄'], 80: ['Rain showers', '🌦'], 81: ['Showers', '🌧'], 82: ['Heavy showers', '🌧'], 85: ['Snow showers', '🌨'],
+      86: ['Heavy snow showers', '🌨'], 95: ['Thunderstorms', '⛈'], 96: ['Storm & hail', '⛈'], 99: ['Storm & hail', '⛈'],
+    };
+
+    const outfitPhotos = {
+      warm: { src: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=900&q=85', alt: 'A light, warm-weather outfit styled for a sunny day', caption: 'Easy layers for a bright day' },
+      mild: { src: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=900&q=85', alt: 'A casually styled outfit for comfortable weather', caption: 'A comfortable everyday look' },
+      cool: { src: 'https://images.unsplash.com/photo-1548126032-079a0fb0099d?auto=format&fit=crop&w=900&q=85', alt: 'A cozy layered outfit for cool weather', caption: 'Cozy layers for a cool day' },
+      cold: { src: 'https://images.unsplash.com/photo-1544923246-77307dd654cb?auto=format&fit=crop&w=900&q=85', alt: 'Warm outerwear for a cold day outside', caption: 'Bundle up and head out' },
+      rain: { src: 'https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?auto=format&fit=crop&w=900&q=85', alt: 'An umbrella ready for wet weather', caption: 'A little rain-ready inspiration' },
+    };
+
+    function celsius(value) { return state.unit === 'F' ? (value * 9 / 5) + 32 : value; }
+    function degree(value) { return `${Math.round(celsius(value))}°`; }
+    function describeWeather(code, isDay = true) {
+      if (!isDay && code === 0) return ['Clear night', '☾'];
+      return weatherDescriptions[code] || ['Changing skies', '☁'];
+    }
+    function setStatus(message = '') { elements.status.textContent = message; }
+
+    function buildOutfit(feelsLike, precipitation, code, wind, uv) {
+      const isWet = precipitation >= 0.5 || [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99].includes(code);
+      let category;
+      let heading;
+      let description;
+      let tags;
+
+      if (isWet) {
+        category = 'rain';
+        heading = 'Make a little room for the rain.';
+        description = 'A water-resistant outer layer and shoes that can handle a splash will keep the day feeling easy.';
+        tags = ['Light raincoat', 'Waterproof shoes', 'A compact umbrella'];
+      } else if (feelsLike < 5) {
+        category = 'cold';
+        heading = 'Wrap up warm and take your time.';
+        description = 'Cold air calls for cozy layers. Start with a warm base, then finish with a proper coat.';
+        tags = ['Warm base layer', 'Insulated coat', 'Scarf & gloves'];
+      } else if (feelsLike < 14) {
+        category = 'cool';
+        heading = 'A little layering goes a long way.';
+        description = 'A soft knit under a light jacket keeps you comfortable as the temperature shifts through the day.';
+        tags = ['Long sleeves', 'Light jacket', 'Comfy trousers'];
+      } else if (feelsLike < 23) {
+        category = 'mild';
+        heading = 'Keep it easy with a flexible layer.';
+        description = 'A breathable everyday outfit with one light layer is ready for a comfortable day out.';
+        tags = ['Breathable top', 'Light layer', 'Everyday shoes'];
+      } else {
+        category = 'warm';
+        heading = 'Light layers, sunny-day energy.';
+        description = 'Choose breathable fabrics and an easy silhouette to stay comfortable in the warmer air.';
+        tags = ['Linen or cotton', 'Relaxed fit', 'Sunglasses'];
+      }
+
+      if (!isWet && wind >= 25) tags[1] = 'Wind-resistant layer';
+      if (uv >= 6 && !tags.includes('Sunglasses')) tags.push('Sun protection');
+      const photo = outfitPhotos[category];
+      elements.outfitHeading.textContent = heading;
+      elements.outfitDescription.textContent = description;
+      elements.outfitTags.replaceChildren(...tags.map((tag) => {
+        const chip = document.createElement('span');
+        chip.className = 'outfit-tag';
+        chip.textContent = tag;
+        return chip;
+      }));
+      elements.outfitImage.src = photo.src;
+      elements.outfitImage.alt = photo.alt;
+      elements.imageCaption.textContent = photo.caption;
+      elements.extraTip.textContent = uv >= 6
+        ? `UV reaches ${uv.toFixed(0)} today—sunglasses and SPF are a good idea.`
+        : wind >= 25
+          ? 'A breezy forecast—an extra layer will make the walk more comfortable.'
+          : isWet
+            ? 'Keep an umbrella close for the trip out.'
+            : 'Comfort is personal—add or remove a layer to suit your plans.';
+    }
+
+    function calculateComfort(feelsLike, precipitation, wind) {
+      const temperaturePenalty = Math.max(0, Math.abs(feelsLike - 21) - 3) * 2.5;
+      const rainPenalty = Math.min(35, precipitation * 12);
+      const windPenalty = Math.min(25, Math.max(0, wind - 15) * 0.8);
+      const score = Math.round(Math.max(0, Math.min(100, 100 - temperaturePenalty - rainPenalty - windPenalty)));
+      const rating = score >= 78 ? 'LOVELY OUT' : score >= 52 ? 'PRETTY OKAY' : score >= 30 ? 'DRESS SMART' : 'COZY INSIDE';
+      const note = score >= 78
+        ? 'A little fresh air could feel especially nice today.'
+        : score >= 52
+          ? 'A small outfit tweak can make getting out more comfortable.'
+          : 'Plan for the elements and make your outside time count.';
+      elements.score.textContent = score;
+      elements.rating.textContent = rating;
+      elements.meter.style.width = `${score}%`;
+      elements.comfortNote.textContent = note;
+      document.querySelector('.comfort-meter').setAttribute('aria-label', `Outdoor comfort score: ${score} out of 100, ${rating.toLowerCase()}`);
+    }
+
+    function renderWeather(data) {
+      const current = data.current;
+      const daily = data.daily;
+      const [condition, symbol] = describeWeather(current.weather_code, current.is_day === 1);
+      const isFahrenheit = state.unit === 'F';
+      const windValue = Math.round(current.wind_speed_10m * (isFahrenheit ? 0.621371 : 1));
+      const windUnit = isFahrenheit ? 'mph' : 'km/h';
+      const cityLabel = [state.location.name, state.location.admin1, state.location.country]
+        .filter((part, index, list) => part && list.indexOf(part) === index)
+        .join(', ');
+
+      elements.city.textContent = cityLabel;
+      elements.date.textContent = new Intl.DateTimeFormat(undefined, {
+        weekday: 'long', month: 'long', day: 'numeric', timeZone: data.timezone,
+      }).format(new Date(`${current.time}:00`));
+      elements.symbol.textContent = symbol;
+      elements.temperature.textContent = degree(current.temperature_2m);
+      elements.condition.textContent = condition;
+      elements.highLow.textContent = `H ${degree(daily.temperature_2m_max[0])} · L ${degree(daily.temperature_2m_min[0])}`;
+      elements.feelsLike.textContent = degree(current.apparent_temperature);
+      elements.rain.textContent = `${current.precipitation.toFixed(1)} mm`;
+      elements.wind.textContent = `${windValue} ${windUnit}`;
+      elements.uv.textContent = daily.uv_index_max[0].toFixed(0);
+      buildOutfit(current.apparent_temperature, current.precipitation, current.weather_code, current.wind_speed_10m, daily.uv_index_max[0]);
+      calculateComfort(current.apparent_temperature, current.precipitation, current.wind_speed_10m);
+      elements.updated.textContent = `Updated ${new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', timeZone: data.timezone }).format(new Date(`${current.time}:00`))}`;
+    }
+
+    async function fetchWeather(location) {
+      setStatus('');
+      elements.searchButton.disabled = true;
+      elements.searchButton.textContent = 'Loading…';
+      try {
+        const params = new URLSearchParams({
+          latitude: location.latitude,
+          longitude: location.longitude,
+          current: 'temperature_2m,apparent_temperature,relative_humidity_2m,is_day,precipitation,weather_code,wind_speed_10m',
+          daily: 'temperature_2m_max,temperature_2m_min,uv_index_max',
+          timezone: 'auto',
+          forecast_days: '1',
+        });
+        const response = await fetch(`${API_BASE}?${params}`);
+        if (!response.ok) throw new Error('The forecast service is unavailable right now. Please try again.');
+        const data = await response.json();
+        if (!data.current || !data.daily) throw new Error('We could not read this forecast. Please try another city.');
+        state.location = location;
+        state.weather = data;
+        renderWeather(data);
+      } catch (error) {
+        setStatus(error instanceof TypeError
+          ? 'Could not reach the forecast. Check your connection and try again.'
+          : error.message || 'Something went wrong. Please try again.');
+      } finally {
+        elements.searchButton.disabled = false;
+        elements.searchButton.textContent = 'Find city';
+      }
+    }
+
+    async function searchCity(query) {
+      setStatus('');
+      elements.searchButton.disabled = true;
+      elements.searchButton.textContent = 'Searching…';
+      try {
+        const params = new URLSearchParams({ name: query, count: '1', language: 'en', format: 'json' });
+        const response = await fetch(`${GEOCODING_BASE}?${params}`);
+        if (!response.ok) throw new Error('City search is unavailable right now. Please try again.');
+        const data = await response.json();
+        const place = data.results?.[0];
+        if (!place) throw new Error(`No city found for “${query}”. Try a nearby city or add a country name.`);
+        await fetchWeather({ name: place.name, admin1: place.admin1, country: place.country, latitude: place.latitude, longitude: place.longitude });
+      } catch (error) {
+        setStatus(error instanceof TypeError
+          ? 'Could not reach city search. Check your connection and try again.'
+          : error.message || 'Could not find that city. Please try again.');
+      } finally {
+        elements.searchButton.disabled = false;
+        elements.searchButton.textContent = 'Find city';
+      }
+    }
+
+    elements.form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const query = elements.input.value.trim();
+      if (query) searchCity(query);
+    });
+
+    document.querySelectorAll('.unit-button').forEach((button) => {
+      button.addEventListener('click', () => {
+        state.unit = button.dataset.unit;
+        localStorage.setItem('weather-worn-unit', state.unit);
+        document.querySelectorAll('.unit-button').forEach((unitButton) => {
+          const selected = unitButton === button;
+          unitButton.classList.toggle('is-active', selected);
+          unitButton.setAttribute('aria-pressed', String(selected));
+        });
+        if (state.weather) renderWeather(state.weather);
+      });
+    });
+
+    elements.outfitImage.addEventListener('error', () => {
+      elements.outfitImage.src = 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=900&q=85';
+      elements.outfitImage.alt = 'A curated selection of everyday clothing';
+      elements.imageCaption.textContent = 'An outfit moodboard for today';
+    }, { once: true });
+
+    if (state.unit === 'F') {
+      document.querySelector('[data-unit="C"]').classList.remove('is-active');
+      document.querySelector('[data-unit="C"]').setAttribute('aria-pressed', 'false');
+      document.querySelector('[data-unit="F"]').classList.add('is-active');
+      document.querySelector('[data-unit="F"]').setAttribute('aria-pressed', 'true');
+    }
+    fetchWeather(DEFAULT_CITY);
+    });
+  </script>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Weather, Worn home">
+        <span class="brand-mark" aria-hidden="true">w.</span>
+        <span>weather<span class="brand-light">, worn</span></span>
+      </a>
+      <div class="topbar-note"><span class="live-dot" aria-hidden="true"></span> A little more prepared, every day</div>
+      <div class="unit-switch" role="group" aria-label="Temperature units">
+        <button class="unit-button is-active" type="button" data-unit="C" aria-pressed="true">°C</button>
+        <button class="unit-button" type="button" data-unit="F" aria-pressed="false">°F</button>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="intro-row" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">YOUR EVERYDAY WEATHER COMPANION</p>
+          <h1 id="page-title">Dress for <span>the day.</span></h1>
+          <p class="intro-copy">A good forecast is one thing. Knowing what to wear is better.</p>
+        </div>
+        <form class="search-form" id="search-form" role="search">
+          <label class="sr-only" for="city-search">Search for a city</label>
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input id="city-search" name="city" type="search" placeholder="Search any city…" autocomplete="off" required>
+          <button type="submit" id="search-button">Find city</button>
+        </form>
+      </section>
+
+      <p class="status-message" id="status-message" role="status" aria-live="polite"></p>
+
+      <section class="weather-layout" aria-label="Weather and outfit for today">
+        <article class="weather-card" aria-labelledby="city-name">
+          <div class="weather-card-top">
+            <div>
+              <p class="eyebrow eyebrow-light">YOUR FORECAST</p>
+              <h2 id="city-name">Detroit, United States</h2>
+              <p class="date-line" id="date-line">Checking today's forecast…</p>
+            </div>
+            <span class="weather-symbol" id="weather-symbol" aria-hidden="true">☀</span>
+          </div>
+          <div class="temperature-row">
+            <span class="temperature" id="temperature">--</span>
+            <div class="condition-block">
+              <p class="condition" id="condition">Loading weather</p>
+              <p class="high-low" id="high-low">H --° · L --°</p>
+            </div>
+          </div>
+          <div class="weather-divider"></div>
+          <div class="weather-stats">
+            <div class="weather-stat"><span class="stat-icon" aria-hidden="true">◉</span><span class="stat-label">Feels like</span><strong id="feels-like">--</strong></div>
+            <div class="weather-stat"><span class="stat-icon" aria-hidden="true">⌁</span><span class="stat-label">Rain</span><strong id="rain-chance">--</strong></div>
+            <div class="weather-stat"><span class="stat-icon" aria-hidden="true">↗</span><span class="stat-label">Wind</span><strong id="wind-speed">--</strong></div>
+            <div class="weather-stat"><span class="stat-icon" aria-hidden="true">☼</span><span class="stat-label">UV index</span><strong id="uv-index">--</strong></div>
+          </div>
+          <p class="weather-source">Weather data by Open-Meteo</p>
+        </article>
+
+        <article class="outfit-card" aria-labelledby="outfit-heading">
+          <div class="outfit-copy">
+            <p class="eyebrow">TODAY'S OUTFIT NOTE</p>
+            <h2 id="outfit-heading">A little layering goes a long way.</h2>
+            <p class="outfit-description" id="outfit-description">Finding the right layers for your day…</p>
+            <div class="outfit-tags" id="outfit-tags" aria-label="Suggested clothing"></div>
+            <p class="extra-tip" id="extra-tip"></p>
+          </div>
+          <figure class="outfit-image-wrap">
+            <img id="outfit-image" src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&amp;fit=crop&amp;w=900&amp;q=85" alt="A curated selection of everyday clothing" referrerpolicy="no-referrer">
+            <figcaption id="image-caption">An outfit moodboard for today</figcaption>
+          </figure>
+        </article>
+      </section>
+
+      <section class="comfort-card" aria-labelledby="comfort-heading">
+        <div class="comfort-icon" aria-hidden="true">✳</div>
+        <div class="comfort-copy">
+          <p class="eyebrow">THE ORIGINAL FEATURE · YOUR QUICK-STEP CHECK</p>
+          <h2 id="comfort-heading">How comfy is outside?</h2>
+          <p id="comfort-note">Your personal-feeling snapshot, at a glance.</p>
+        </div>
+        <div class="comfort-meter" role="img" aria-label="Outdoor comfort score">
+          <div class="meter-track"><span id="meter-fill"></span></div>
+          <div class="meter-labels"><span>BRING A LAYER</span><strong id="comfort-score">--</strong><span id="comfort-rating">CHECKING…</span></div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <span>Made for the “what should I wear?” moment.</span>
+        <span>Free forecast · No API key · <span id="updated-time">—</span></span>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>
